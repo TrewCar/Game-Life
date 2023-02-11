@@ -1,19 +1,7 @@
 ﻿using System;
-using System.IO;
-using System.Windows.Forms;
-using System.Windows.Ink;
 using System.Drawing;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Rebar;
-
-
-
-
-
-//g.FillRectangle(new SolidBrush(Color.Blue), (crd - 1) * sz, (crd - 1) * sz,sz,sz);
-
-
-
-
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace WindowsFormsApp5
 {
@@ -24,90 +12,66 @@ namespace WindowsFormsApp5
             InitializeComponent();
         }
 
-        Random rand = new Random();
+        private Random rand = new Random();
 
-        Graphics g;
- 
-        int[,] Pixels;
+        private Graphics g;
 
-        int[,] Sosedi; // массив с колвом соседей в каждой кнопке
+        private sbyte[,] Pixels;
 
-        int RectX;
-        int RectY;
+        private sbyte[,] Sosedi; // массив с колвом соседей в каждой кнопке
 
-        int sz = 10;
+        private int RectX;
+        private int RectY;
+
+        private int sz = 10;
 
         private void Form1_Load(object sender, EventArgs e)
-        {                     
+        {
             RectX = this.Width / sz;
             RectY = this.Height / sz;
 
-            
-            Pixels = new int[RectX, RectY];
-            Sosedi = new int[RectX, RectY];
+            Pixels = new sbyte[RectX, RectY];
+            Sosedi = new sbyte[RectX, RectY];
 
-            Bitmap bmp = new Bitmap(this.Width, this.Height);
-
-            pictureBox1.Image = bmp;
-
+            NewPicture();
             g = Graphics.FromImage(pictureBox1.Image);
-                   
         }
+        private void Check(sbyte Pixel, ref sbyte num) => num += Pixel != 1 ? (sbyte)0 : (sbyte)1;
 
-        static void Check(int Pixel, ref int num)
+        private void Ccheck(int x, int y)
         {
-            if (Pixel == 1)
-                num += 1;
+            Sosedi[x, y] = (sbyte)-Pixels[x, y];
+
+            for (int i = -1; i <= 1; i++)
+            {
+                for (int j = -1; j <= 1; j++)
+                {
+                    Check(Pixels[x + i, y + j], ref Sosedi[x, y]);
+                }
+            }
         }
         private void timer1_Tick(object sender, EventArgs e)
         {
-            for (int i = 1; i < RectX-1; i++)
+            Parallel.For(1, RectX - 1, x => Parallel.For(1, RectY - 1, y => Ccheck(x, y)));
+
+            for (int i = 1; i < RectX - 1; i++)
             {
-                for (int j = 1; j < RectY-1; j++)
+                for (int j = 1; j < RectY - 1; j++)
                 {
-                    int num = 0;
-
-                    Check(Pixels[i - 1, j], ref num);
-
-                    Check(Pixels[i - 1, j - 1], ref num);
-
-                    Check(Pixels[i - 1, j + 1], ref num);
-
-                    Check(Pixels[i, j - 1], ref num);
-
-                    Check(Pixels[i, j + 1], ref num);
-
-                    Check(Pixels[i + 1, j], ref num);
-
-                    Check(Pixels[i + 1, j - 1], ref num);
-
-                    Check(Pixels[i + 1, j + 1], ref num);
-
-                    Sosedi[i, j] = num;
-                }
-            }
-
-            for (int i = 0; i < RectX; i++)
-            {
-                for (int j = 0; j < RectY; j++)
-                {
-
-                    if (Sosedi[i, j] == 3) // если соседей три она появляется
-                        Pixels[i, j] = 1;
-                    
-                    else if (Sosedi[i, j] < 2 || Sosedi[i, j] > 3)  // если соседей меньше двух или больше то клетка умирает                   
-                        Pixels[i, j] = 0;
-
-                    if (Pixels[i, j] == 1)
+                    if (Sosedi[i, j] == 3)
+                    {
                         g.FillRectangle(new SolidBrush(Color.Blue), i * sz, j * sz, sz, sz);
-                    if (Pixels[i, j] == 0)
+                        Pixels[i, j] = 1;
+                    }
+                    else if (Sosedi[i, j] < 2 || Sosedi[i, j] > 3)
+                    {
                         g.FillRectangle(new SolidBrush(Color.Black), i * sz, j * sz, sz, sz);
-
+                        Pixels[i, j] = 0;
+                    }
                 }
             }
             pictureBox1.Invalidate();
-            Sosedi = null;
-            Sosedi = new int[RectX, RectY];
+            Sosedi = new sbyte[RectX, RectY];
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -119,12 +83,10 @@ namespace WindowsFormsApp5
         {
             timer1.Stop();
         }
-
+        private void NewPicture() => pictureBox1.Image = new Bitmap(this.Width, this.Height);
         private void button3_Click(object sender, EventArgs e)
         {
-            Bitmap bmp = new Bitmap(this.Width, this.Height);
-
-            pictureBox1.Image = bmp;
+            NewPicture();
 
             g = Graphics.FromImage(pictureBox1.Image);
             for (int i = 0; i < RectX; i++)
@@ -138,41 +100,37 @@ namespace WindowsFormsApp5
                         Pixels[i, j] = 1;
                         g.FillRectangle(new SolidBrush(Color.Blue), i * sz, j * sz, sz, sz);
                     }
-                    else if (r > 50)
-                    {
-                        Pixels[i, j] = 0;
-                    }
                 }
             }
         }
-
-        
         private void pictureBox1_MouseMove(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
-
                 int First = e.X / sz;
                 int Second = e.Y / sz;
-
 
                 g.FillRectangle(new SolidBrush(Color.Blue), First * sz, Second * sz, sz, sz);
                 pictureBox1.Invalidate();
                 Pixels[First, Second] = 1;
-                
-                
+            }
+            else if (e.Button == MouseButtons.Right)
+            {
+                int First = e.X / sz;
+                int Second = e.Y / sz;
+
+                g.FillRectangle(new SolidBrush(Color.Black), First * sz, Second * sz, sz, sz);
+                pictureBox1.Invalidate();
+                Pixels[First, Second] = 0;
             }
         }
-
         private void button4_Click(object sender, EventArgs e)
         {
-            Bitmap bmp = new Bitmap(this.Width, this.Height);
-
-            pictureBox1.Image = bmp;
+            NewPicture();
 
             g = Graphics.FromImage(pictureBox1.Image);
-            Pixels = new int[RectX, RectY];
-            Sosedi = new int[RectX, RectY];
+            Pixels = new sbyte[RectX, RectY];
+            Sosedi = new sbyte[RectX, RectY];
         }
     }
 }
